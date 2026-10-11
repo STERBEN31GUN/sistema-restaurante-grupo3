@@ -1,0 +1,12 @@
+# Archivos compilados
+*.class
+bin/
+out/
+
+# Archivos de VS Code / IDEs
+.vscode/
+.idea/
+*.iml
+
+# Archivos de datos (para evitar conflictos de persistencia iniciales)
+*.dat
