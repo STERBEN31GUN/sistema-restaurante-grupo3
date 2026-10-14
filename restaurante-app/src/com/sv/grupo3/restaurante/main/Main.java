@@ -108,7 +108,7 @@ public class Main {
 
         // C. Simulador del menú de consola principal
         Scanner scanner = new Scanner(System.in);
-        System.out.println("---- MENÚ PRINCIPAL (Simulación) ----");
+        System.out.println("---- MENU PRINCIPAL (Simulación) ----");
         System.out.println("Escribe 'salir' para detener el restaurante.");
         System.out.println("Puedes escribir cualquier cosa mientras la cocina trabaja de fondo:");
         
