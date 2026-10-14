@@ -12,6 +12,8 @@ import com.sv.grupo3.restaurante.repository.UsuarioRepository;
 import com.sv.grupo3.restaurante.service.PedidoService;
 import com.sv.grupo3.restaurante.service.ProductoService;
 import com.sv.grupo3.restaurante.service.UsuarioService;
+import com.sv.grupo3.restaurante.service.CocinaMonitorThread;
+import java.util.Scanner;
 
 /**
  * Punto de entrada del prototipo. Simula el flujo basico del sistema:
@@ -79,5 +81,48 @@ public class Main {
                 .forEach(p -> System.out.println(" - " + p));
 
         System.out.println("\n=== Fin de la demo del prototipo ===");
+
+        // ---------------------------------------------------------
+        // 2. LO NUEVO: Prueba de la Programación Concurrente (Hilos)
+        // ---------------------------------------------------------
+
+        // A. Instanciamos y arrancamos tu hilo de la cocina
+        CocinaMonitorThread monitorCocina = new CocinaMonitorThread();
+        Thread hiloCocina = new Thread(monitorCocina);
+        hiloCocina.start();
+
+        // B. Simulamos que entraron comandas (Inyectamos objetos Dummy)
+        DetallePedido dummy1 = new DetallePedido();
+        dummy1.setIdPedido(101);
+        dummy1.setIdProducto(1); 
+        dummy1.setObservaciones("Sin cebolla");
+        
+        DetallePedido dummy2 = new DetallePedido();
+        dummy2.setIdPedido(102);
+        dummy2.setIdProducto(5); 
+        dummy2.setObservaciones("Extra limón");
+
+        // Agregamos las comandas a tu hilo (como si el mesero las mandara a la cocina)
+        monitorCocina.agregarComanda(dummy1);
+        monitorCocina.agregarComanda(dummy2);
+
+        // C. Simulador del menú de consola principal
+        Scanner scanner = new Scanner(System.in);
+        System.out.println("---- MENÚ PRINCIPAL (Simulación) ----");
+        System.out.println("Escribe 'salir' para detener el restaurante.");
+        System.out.println("Puedes escribir cualquier cosa mientras la cocina trabaja de fondo:");
+        
+        String input = "";
+        while (!input.equalsIgnoreCase("salir")) {
+             input = scanner.nextLine();
+             if(!input.equalsIgnoreCase("salir")) {
+                 System.out.println("El sistema registró tu entrada: " + input);
+             }
+        }
+        
+        // Apagamos la cocina cuando el usuario sale del menú
+        monitorCocina.detener();
+        scanner.close();
+        System.out.println("Sistema apagado.");
     }
 }
