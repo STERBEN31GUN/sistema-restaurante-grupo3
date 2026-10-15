@@ -18,14 +18,14 @@ public class Main {
         // ---------------------------------------------------------
         ProductoRepository productoRepository = new ProductoRepository();
         MesaRepository mesaRepository = new MesaRepository();
-        PedidoRepository pedidoRepository = new PedidoRepository();
+        PedidoRepository PedidoRepository = new PedidoRepository();
         UsuarioRepository usuarioRepository = new UsuarioRepository();
 
         // ---------------------------------------------------------
         // 2. INICIALIZAR SERVICIOS (Lógica de Negocio y Reglas)
         // ---------------------------------------------------------
         ProductoService productoService = new ProductoService(productoRepository);
-        PedidoService pedidoService = new PedidoService(pedidoRepository);
+        PedidoService pedidoService = new PedidoService(PedidoRepository);
         UsuarioService usuarioService = new UsuarioService(usuarioRepository);
 
         // ---------------------------------------------------------

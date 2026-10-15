@@ -1,11 +1,9 @@
 package com.sv.grupo3.restaurante.service;
 
+import java.util.List;
+
 import com.sv.grupo3.restaurante.dao.ProductoDAO;
 import com.sv.grupo3.restaurante.model.ItemMenu;
-import com.sv.grupo3.restaurante.model.Platillo;
-import com.sv.grupo3.restaurante.model.Bebida;
-
-import java.util.List;
 
 public class ProductoService {
 
