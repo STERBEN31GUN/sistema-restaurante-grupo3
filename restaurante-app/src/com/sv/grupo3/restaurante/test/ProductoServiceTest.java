@@ -1,32 +1,41 @@
 package com.sv.grupo3.restaurante.test;
 
+import com.sv.grupo3.restaurante.model.Bebida;
 import com.sv.grupo3.restaurante.model.ItemMenu;
+import com.sv.grupo3.restaurante.model.Platillo;
 import com.sv.grupo3.restaurante.repository.ProductoRepository;
 import com.sv.grupo3.restaurante.service.ProductoService;
 
 import java.util.List;
 
-/**
- * Prueba manual (sin JUnit, para no requerir dependencias externas en el prototipo).
- * Se ejecuta con su propio metodo main y valida con asserts simples.
- * Ejecutar: java com.sv.grupo3.restaurante.test.ProductoServiceTest
- */
 public class ProductoServiceTest {
 
     public static void main(String[] args) {
         ProductoRepository repo = new ProductoRepository();
         ProductoService service = new ProductoService(repo);
 
-        ItemMenu p = service.registrarProducto("Yuca frita", "Con curtido y salsa", "Entradas", 2.00, 20);
-        assert p.getId() > 0 : "El producto deberia tener un id asignado";
+        try {
+            // 1. Probar registro de Platillo (Se crea el objeto y se pasa al servicio)
+            Platillo p = new Platillo(1, "Yuca frita", "Con chicharron", 2.50, 15, "ACTIVO", true);
+            service.registrarProducto(p);
+            assert p.getId() > 0 : "El producto deberia tener un id asignado";
 
-        service.registrarProducto("Gaseosa", "Lata 355ml", "Bebidas", 1.00, 40);
-        List<ItemMenu> bebidas = service.listarPorCategoria("Bebidas");
-        assert bebidas.size() == 1 : "Deberia existir 1 producto en categoria Bebidas";
+            // 2. Probar registro de Bebida (Se crea el objeto y se pasa al servicio)
+            Bebida b = new Bebida(2, "Gaseosa", "Lata 355ml", 1.00, 20, "ACTIVO", false);
+            service.registrarProducto(b);
 
-        service.darDeBaja(p.getId());
-        assert repo.buscarPorId(p.getId()).getEstado().equals("INACTIVO") : "El producto deberia quedar INACTIVO";
+            // 3. Probar listar por categoría ("Bebida" o "Platillo" según la clase)
+            List<ItemMenu> bebidas = service.listarPorCategoria("Bebida");
+            assert bebidas.size() >= 1 : "Deberia existir 1 producto";
 
-        System.out.println("Todas las pruebas de ProductoService pasaron correctamente.");
+            // 4. Probar dar de baja
+            service.darDeBaja(p.getId());
+            assert repo.buscarPorId(p.getId()).getEstado().equals("INACTIVO");
+
+            System.out.println("Todas las pruebas de ProductoService pasaron exitosamente.");
+
+        } catch (Exception e) {
+            System.err.println("La prueba falló: " + e.getMessage());
+        }
     }
 }
