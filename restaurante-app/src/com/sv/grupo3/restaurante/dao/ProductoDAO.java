@@ -1,10 +1,10 @@
 package com.sv.grupo3.restaurante.dao;
 
-import com.sv.grupo3.restaurante.model.Producto;
+import com.sv.grupo3.restaurante.model.ItemMenu;
 
 import java.util.List;
 
-public interface ProductoDAO extends GenericDAO<Producto> {
+public interface ProductoDAO extends GenericDAO<ItemMenu> {
 
-    List<Producto> buscarPorCategoria(String categoria);
+    List<ItemMenu> buscarPorCategoria(String categoria);
 }
