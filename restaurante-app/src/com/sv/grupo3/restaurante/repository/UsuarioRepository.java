@@ -1,61 +1,78 @@
 package com.sv.grupo3.restaurante.repository;
 
-import com.sv.grupo3.restaurante.dao.UsuarioDAO;
-import com.sv.grupo3.restaurante.exception.RecursoNoEncontradoException;
+import com.sv.grupo3.restaurante.dao.GenericDAO;
 import com.sv.grupo3.restaurante.model.Usuario;
-import com.sv.grupo3.restaurante.util.GeneradorId;
 
+import java.io.*;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
-public class UsuarioRepository implements UsuarioDAO {
+public class UsuarioRepository implements GenericDAO<Usuario> {
 
-    private final Map<Integer, Usuario> almacen = new LinkedHashMap<>();
-    private final GeneradorId generadorId = new GeneradorId();
+    private static final String FILE_NAME = "usuarios.dat";
 
     @Override
-    public Usuario guardar(Usuario entidad) {
-        entidad.setId(generadorId.siguiente());
-        almacen.put(entidad.getId(), entidad);
-        return entidad;
-    }
-
-    @Override
-    public Usuario buscarPorId(int id) {
-        Usuario usuario = almacen.get(id);
-        if (usuario == null) {
-            throw new RecursoNoEncontradoException("Usuario con id " + id + " no encontrado");
+    public Usuario guardar(Usuario usuario) {
+        List<Usuario> usuarios = listarTodos();
+        if (usuario.getId() == 0) {
+            int newId = usuarios.isEmpty() ? 1 : usuarios.get(usuarios.size() - 1).getId() + 1;
+            usuario.setId(newId);
         }
+        usuarios.add(usuario);
+        guardarTodo(usuarios);
         return usuario;
     }
 
     @Override
-    public List<Usuario> listarTodos() {
-        return new ArrayList<>(almacen.values());
+    public Usuario buscarPorId(int id) {
+        return listarTodos().stream()
+                .filter(u -> u.getId() == id)
+                .findFirst()
+                .orElse(null);
     }
 
     @Override
-    public Usuario actualizar(Usuario entidad) {
-        buscarPorId(entidad.getId());
-        almacen.put(entidad.getId(), entidad);
-        return entidad;
+    @SuppressWarnings("unchecked")
+    public List<Usuario> listarTodos() {
+        File file = new File(FILE_NAME);
+        if (!file.exists()) {
+            return new ArrayList<>();
+        }
+        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(FILE_NAME))) {
+            return (List<Usuario>) ois.readObject();
+        } catch (EOFException e) {
+            return new ArrayList<>();
+        } catch (IOException | ClassNotFoundException e) {
+            System.err.println("[Error] No se pudo leer usuarios.dat: " + e.getMessage());
+            return new ArrayList<>();
+        }
+    }
+
+    @Override
+    public Usuario actualizar(Usuario usuarioActualizado) {
+        List<Usuario> usuarios = listarTodos();
+        for (int i = 0; i < usuarios.size(); i++) {
+            if (usuarios.get(i).getId() == usuarioActualizado.getId()) {
+                usuarios.set(i, usuarioActualizado);
+                break;
+            }
+        }
+        guardarTodo(usuarios);
+        return usuarioActualizado;
     }
 
     @Override
     public void eliminar(int id) {
-        buscarPorId(id);
-        almacen.remove(id);
+        List<Usuario> usuarios = listarTodos();
+        usuarios.removeIf(u -> u.getId() == id);
+        guardarTodo(usuarios);
     }
 
-    @Override
-    public Usuario buscarPorNombreUsuario(String usuario) {
-        for (Usuario u : almacen.values()) {
-            if (u.getUsuario().equalsIgnoreCase(usuario)) {
-                return u;
-            }
+    private void guardarTodo(List<Usuario> usuarios) {
+        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(FILE_NAME))) {
+            oos.writeObject(usuarios);
+        } catch (IOException e) {
+            System.err.println("[Error] Fallo al escribir en usuarios.dat: " + e.getMessage());
         }
-        throw new RecursoNoEncontradoException("Usuario '" + usuario + "' no encontrado");
     }
 }
