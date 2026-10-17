@@ -1,13 +1,13 @@
 package com.sv.grupo3.restaurante.repository;
 
-import com.sv.grupo3.restaurante.dao.GenericDAO;
+import com.sv.grupo3.restaurante.dao.UsuarioDAO;
 import com.sv.grupo3.restaurante.model.Usuario;
 
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 
-public class UsuarioRepository implements GenericDAO<Usuario> {
+public class UsuarioRepository implements UsuarioDAO {
 
     private static final String FILE_NAME = "usuarios.dat";
 
@@ -32,6 +32,14 @@ public class UsuarioRepository implements GenericDAO<Usuario> {
     }
 
     @Override
+    public Usuario buscarPorNombreUsuario(String usuario) {
+        return listarTodos().stream()
+                .filter(u -> u.getUsuario().equalsIgnoreCase(usuario))
+                .findFirst()
+                .orElse(null);
+    }
+
+    @Override
     @SuppressWarnings("unchecked")
     public List<Usuario> listarTodos() {
         File file = new File(FILE_NAME);
@@ -43,7 +51,7 @@ public class UsuarioRepository implements GenericDAO<Usuario> {
         } catch (EOFException e) {
             return new ArrayList<>();
         } catch (IOException | ClassNotFoundException e) {
-            System.err.println("[Error] No se pudo leer usuarios.dat: " + e.getMessage());
+            System.err.println("[Error] Fallo al leer usuarios.dat: " + e.getMessage());
             return new ArrayList<>();
         }
     }

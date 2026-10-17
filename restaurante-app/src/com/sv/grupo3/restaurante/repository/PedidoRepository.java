@@ -1,13 +1,14 @@
 package com.sv.grupo3.restaurante.repository;
 
-import com.sv.grupo3.restaurante.dao.GenericDAO;
+import com.sv.grupo3.restaurante.dao.PedidoDAO;
 import com.sv.grupo3.restaurante.model.Pedido;
 
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
-public class PedidoRepository implements GenericDAO<Pedido> {
+public class PedidoRepository implements PedidoDAO {
 
     private static final String FILE_NAME = "pedidos.dat";
 
@@ -32,6 +33,13 @@ public class PedidoRepository implements GenericDAO<Pedido> {
     }
 
     @Override
+    public List<Pedido> buscarPorEstado(String estado) {
+        return listarTodos().stream()
+                .filter(p -> p.getEstado().equalsIgnoreCase(estado))
+                .collect(Collectors.toList());
+    }
+
+    @Override
     @SuppressWarnings("unchecked")
     public List<Pedido> listarTodos() {
         File file = new File(FILE_NAME);
@@ -43,7 +51,7 @@ public class PedidoRepository implements GenericDAO<Pedido> {
         } catch (EOFException e) {
             return new ArrayList<>();
         } catch (IOException | ClassNotFoundException e) {
-            System.err.println("[Error] No se pudo leer pedidos.dat: " + e.getMessage());
+            System.err.println("[Error] Fallo al leer pedidos.dat: " + e.getMessage());
             return new ArrayList<>();
         }
     }
