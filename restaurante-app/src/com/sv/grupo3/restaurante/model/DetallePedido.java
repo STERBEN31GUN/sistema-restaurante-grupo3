@@ -10,6 +10,7 @@ public class DetallePedido {
     private int idPedido;
     private int idProducto;
     private int cantidad;
+    private double precioUnitario; // precio vigente al momento de la comanda (detalles_pedido.precio_unitario)
     private String observaciones;
     private String estadoPreparacion; // Ej: "PENDIENTE", "EN_PREPARACION", "LISTO"
 
@@ -55,7 +56,26 @@ public class DetallePedido {
     }
 
     public void setCantidad(int cantidad) {
+        if (cantidad <= 0) {
+            throw new IllegalArgumentException("La cantidad debe ser mayor a cero.");
+        }
         this.cantidad = cantidad;
+    }
+
+    public double getPrecioUnitario() {
+        return precioUnitario;
+    }
+
+    public void setPrecioUnitario(double precioUnitario) {
+        if (precioUnitario < 0) {
+            throw new IllegalArgumentException("El precio unitario no puede ser negativo.");
+        }
+        this.precioUnitario = precioUnitario;
+    }
+
+    /** Importe de la linea: cantidad por precio unitario. */
+    public double getSubtotal() {
+        return cantidad * precioUnitario;
     }
 
     public String getObservaciones() {
@@ -81,6 +101,7 @@ public class DetallePedido {
                 ", idPedido=" + idPedido +
                 ", idProducto=" + idProducto +
                 ", cantidad=" + cantidad +
+                ", precioUnitario=" + precioUnitario +
                 ", observaciones='" + observaciones + '\'' +
                 ", estadoPreparacion='" + estadoPreparacion + '\'' +
                 '}';

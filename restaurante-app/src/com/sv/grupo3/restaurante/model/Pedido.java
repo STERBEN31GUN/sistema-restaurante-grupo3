@@ -11,6 +11,8 @@ import java.util.List;
 public class Pedido {
 
     private int id;
+    private int idMesa;      // FK mesas.id (persistencia JDBC)
+    private int idUsuario;   // FK usuarios.id: mesero que registra la orden
     private int numeroMesa;
     private String zona;
     private LocalDate fecha;
@@ -34,12 +36,43 @@ public class Pedido {
         this.detalles = new ArrayList<>();
     }
 
+    /**
+     * Constructor usado por la capa de persistencia JDBC: el pedido queda
+     * ligado a la mesa y al usuario por sus identificadores en la base de datos.
+     */
+    public Pedido(int id, int idMesa, int idUsuario, LocalDate fecha, LocalTime hora, String estado, double total) {
+        this.id = id;
+        this.idMesa = idMesa;
+        this.idUsuario = idUsuario;
+        this.fecha = fecha;
+        this.hora = hora;
+        this.estado = estado;
+        this.total = total;
+        this.detalles = new ArrayList<>();
+    }
+
     public int getId() {
         return id;
     }
 
     public void setId(int id) {
         this.id = id;
+    }
+
+    public int getIdMesa() {
+        return idMesa;
+    }
+
+    public void setIdMesa(int idMesa) {
+        this.idMesa = idMesa;
+    }
+
+    public int getIdUsuario() {
+        return idUsuario;
+    }
+
+    public void setIdUsuario(int idUsuario) {
+        this.idUsuario = idUsuario;
     }
 
     public int getNumeroMesa() {
@@ -102,10 +135,21 @@ public class Pedido {
         this.detalles.add(detalle);
     }
 
+    /** Suma de subtotales de los detalles cargados en memoria. */
+    public double calcularTotal() {
+        double suma = 0.0;
+        for (DetallePedido d : detalles) {
+            suma += d.getSubtotal();
+        }
+        return suma;
+    }
+
     @Override
     public String toString() {
         return "Pedido{" +
                 "id=" + id +
+                ", idMesa=" + idMesa +
+                ", idUsuario=" + idUsuario +
                 ", numeroMesa=" + numeroMesa +
                 ", zona='" + zona + '\'' +
                 ", fecha=" + fecha +
