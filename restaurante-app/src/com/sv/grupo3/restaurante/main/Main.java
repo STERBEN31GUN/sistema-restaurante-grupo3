@@ -1,11 +1,24 @@
 package com.sv.grupo3.restaurante.main;
 
-import com.sv.grupo3.restaurante.repository.*;
-import com.sv.grupo3.restaurante.service.*;
+import com.sv.grupo3.restaurante.config.DataSourceConfig;
+import com.sv.grupo3.restaurante.controller.MesaController;
+import com.sv.grupo3.restaurante.controller.PedidoController;
+import com.sv.grupo3.restaurante.controller.ProductoController;
+import com.sv.grupo3.restaurante.repository.MesaRepositoryJDBC;
+import com.sv.grupo3.restaurante.repository.PedidoRepositoryJDBC;
+import com.sv.grupo3.restaurante.repository.ProductoRepository;
+import com.sv.grupo3.restaurante.service.CocinaMonitorThread;
+import com.sv.grupo3.restaurante.service.MesaService;
+import com.sv.grupo3.restaurante.service.PedidoService;
+import com.sv.grupo3.restaurante.service.ProductoService;
+import com.sv.grupo3.restaurante.service.RestauranteFacadeService;
+
+import javax.sql.DataSource;
 
 /**
- * Punto de entrada del prototipo del Sistema de Gestión de Restaurante.
- * Orquesta la inicialización de repositorios (.dat) y la concurrencia (Hilos).
+ * Punto de entrada del Sistema de Gestion de Restaurante.
+ * Arma la aplicacion de abajo hacia arriba: DataSource -> repositorios -> servicios
+ * -> fachada -> controladores -> vista de consola.
  */
 public class Main {
 
@@ -14,42 +27,55 @@ public class Main {
         System.out.println("=== INICIANDO SISTEMA DE GESTION DE RESTAURANTE ===\n");
 
         // ---------------------------------------------------------
-        // 1. INICIALIZAR REPOSITORIOS (Persistencia en .dat de Jason)
+        // 1. POOL DE CONEXIONES (config/DataSourceConfig)
+        // ---------------------------------------------------------
+        DataSource dataSource = DataSourceConfig.getDataSource();
+
+        // ---------------------------------------------------------
+        // 2. REPOSITORIOS (persistencia JDBC)
+        //    El catalogo sigue en memoria hasta que se integre ProductoRepositoryJDBC.
         // ---------------------------------------------------------
         ProductoRepository productoRepository = new ProductoRepository();
-        MesaRepository mesaRepository = new MesaRepository();
-        PedidoRepository PedidoRepository = new PedidoRepository();
-        UsuarioRepository usuarioRepository = new UsuarioRepository();
+        MesaRepositoryJDBC mesaRepository = new MesaRepositoryJDBC(dataSource);
+        PedidoRepositoryJDBC pedidoRepository = new PedidoRepositoryJDBC(dataSource);
 
         // ---------------------------------------------------------
-        // 2. INICIALIZAR SERVICIOS (Lógica de Negocio y Reglas)
+        // 3. SERVICIOS (reglas de negocio y transacciones)
         // ---------------------------------------------------------
         ProductoService productoService = new ProductoService(productoRepository);
-        PedidoService pedidoService = new PedidoService(PedidoRepository);
-        UsuarioService usuarioService = new UsuarioService(usuarioRepository);
+        MesaService mesaService = new MesaService(dataSource, mesaRepository);
+        PedidoService pedidoService = new PedidoService(dataSource, pedidoRepository, productoService, mesaService);
 
         // ---------------------------------------------------------
-        // 3. INICIALIZAR CONCURRENCIA (Tu hilo de cocina)
+        // 4. CONCURRENCIA (hilo de cocina en segundo plano)
         // ---------------------------------------------------------
         CocinaMonitorThread monitorCocina = new CocinaMonitorThread();
-        Thread hiloCocina = new Thread(monitorCocina);
-        hiloCocina.start(); // El chef empieza a esperar órdenes en segundo plano
+        Thread hiloCocina = new Thread(monitorCocina, "cocina-monitor");
+        hiloCocina.setDaemon(true);
+        hiloCocina.start();
 
         // ---------------------------------------------------------
-        // 4. LANZAR INTERFAZ DE CONSOLA (Tarea de Alisson y Rafael)
+        // 5. FACHADA Y CONTROLADORES (puerta de entrada para las vistas)
         // ---------------------------------------------------------
-        // En lugar de tener el Scanner desordenado aquí, 
-        // delegamos todo a la clase MenuConsola que le pasaste a Alisson.
+        RestauranteFacadeService facade =
+                new RestauranteFacadeService(productoService, pedidoService, mesaService, monitorCocina);
+        ProductoController productoController = new ProductoController(productoService);
+        MesaController mesaController = new MesaController(mesaService);
+        PedidoController pedidoController = new PedidoController(facade);
+
+        // ---------------------------------------------------------
+        // 6. INTERFAZ DE CONSOLA
+        //    Las vistas de mesero/cliente y cocina/bar/caja consumen los
+        //    controladores anteriores (productoController, mesaController, pedidoController).
+        // ---------------------------------------------------------
         MenuConsola menu = new MenuConsola(productoService, monitorCocina);
-        
-        // Esta línea detiene el flujo principal en el menú interactivo,
-        // mientras tu hilo de cocina sigue corriendo por debajo.
         menu.mostrarMenu();
 
         // ---------------------------------------------------------
-        // 5. APAGADO SEGURO
+        // 7. APAGADO SEGURO
         // ---------------------------------------------------------
         System.out.println("\n[Sistema] Cerrando operaciones del restaurante...");
+        monitorCocina.detener();
         System.exit(0);
     }
 }
