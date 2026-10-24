@@ -33,6 +33,8 @@ public class MesaRepositoryJDBC implements GenericDAO<Mesa> {
         "UPDATE mesas SET numero_mesa = ?, zona = ?, estado = ? WHERE id = ?";
     private static final String SQL_UPDATE_ESTADO =
         "UPDATE mesas SET estado = ? WHERE id = ?";
+    private static final String SQL_SELECT_ESTADO_FOR_UPDATE =
+        "SELECT estado FROM mesas WHERE id = ? FOR UPDATE";
     private static final String SQL_DELETE =
         "DELETE FROM mesas WHERE id = ?";
 
@@ -134,15 +136,44 @@ public class MesaRepositoryJDBC implements GenericDAO<Mesa> {
 
     /** Cambia solo el estado de una mesa (abrir o cerrar una cuenta). */
     public void cambiarEstado(int id, String nuevoEstado) {
-        validarEstado(nuevoEstado);
-        try (Connection con = dataSource.getConnection();
-             PreparedStatement ps = con.prepareStatement(SQL_UPDATE_ESTADO)) {
-
-            ps.setString(1, nuevoEstado);
-            ps.setInt(2, id);
-            ps.executeUpdate();
+        try (Connection con = dataSource.getConnection()) {
+            cambiarEstado(con, id, nuevoEstado);
         } catch (SQLException e) {
             throw new RuntimeException("[Error] No se pudo cambiar el estado de la mesa: " + e.getMessage(), e);
+        }
+    }
+
+    // ---------------------------------------------------------------------
+    // Operaciones sobre una conexion compartida. Las usan MesaService y
+    // PedidoService para que el cambio de estado de la mesa forme parte de la
+    // misma transaccion que el pedido (commit / rollback en el servicio).
+    // ---------------------------------------------------------------------
+
+    /**
+     * Lee el estado actual de la mesa bloqueando la fila (SELECT ... FOR UPDATE).
+     * Mientras la transaccion que la bloqueo no termine, otro hilo o cajero que
+     * intente ocupar la misma mesa queda en espera; asi se evita la doble asignacion.
+     *
+     * @return estado actual, o null si la mesa no existe
+     */
+    public String leerEstadoConBloqueo(Connection con, int id) throws SQLException {
+        try (PreparedStatement ps = con.prepareStatement(SQL_SELECT_ESTADO_FOR_UPDATE)) {
+            ps.setInt(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getString("estado") : null;
+            }
+        }
+    }
+
+    /** Actualiza el estado usando la conexion recibida. No hace commit. */
+    public void cambiarEstado(Connection con, int id, String nuevoEstado) throws SQLException {
+        validarEstado(nuevoEstado);
+        try (PreparedStatement ps = con.prepareStatement(SQL_UPDATE_ESTADO)) {
+            ps.setString(1, nuevoEstado);
+            ps.setInt(2, id);
+            if (ps.executeUpdate() == 0) {
+                throw new SQLException("La mesa " + id + " no existe; no se actualizo ninguna fila.");
+            }
         }
     }
 
