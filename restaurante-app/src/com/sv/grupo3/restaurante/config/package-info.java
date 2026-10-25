@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Configuración técnica de la aplicación.
  * La configuración de conexión se integrará en esta capa.
  */
