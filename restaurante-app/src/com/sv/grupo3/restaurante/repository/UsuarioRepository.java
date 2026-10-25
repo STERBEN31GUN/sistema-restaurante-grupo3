@@ -6,8 +6,9 @@ import com.sv.grupo3.restaurante.model.Usuario;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
+import com.sv.grupo3.restaurante.dao.UsuarioDAO;
 
-public class UsuarioRepository implements GenericDAO<Usuario> {
+public class UsuarioRepository implements UsuarioDAO {
 
     private static final String FILE_NAME = "usuarios.dat";
 
@@ -74,5 +75,11 @@ public class UsuarioRepository implements GenericDAO<Usuario> {
         } catch (IOException e) {
             System.err.println("[Error] Fallo al escribir en usuarios.dat: " + e.getMessage());
         }
+    }
+
+    @Override
+    public Usuario buscarPorNombreUsuario(String usuario) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'buscarPorNombreUsuario'");
     }
 }
