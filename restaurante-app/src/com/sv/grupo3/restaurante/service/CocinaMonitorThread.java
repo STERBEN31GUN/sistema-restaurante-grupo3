@@ -1,29 +1,22 @@
 package com.sv.grupo3.restaurante.service;
 
-import com.sv.grupo3.restaurante.model.DetallePedido; // Asegúrate de que esta clase exista
-import java.util.List;
-import java.util.ArrayList;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+// IMPORTANTE: Agrega aquí el import de tu clase que genera la conexión (ej. ConexionDB)
 
 /**
  * Hilo que simula el trabajo asíncrono de la cocina y el bar.
- * Procesa los detalles de los pedidos que están en estado "En preparación"
- * sin bloquear el hilo principal (la consola donde el mesero atiende).
+ * Consulta directamente a la base de datos los detalles de los pedidos 
+ * que están en estado "En preparación" sin bloquear el hilo principal.
  */
 public class CocinaMonitorThread implements Runnable {
 
-    // Lista temporal para que puedas trabajar sin depender de la base de datos de Jason
-    private List<DetallePedido> colaDePreparacion;
     private volatile boolean ejecutando; // Control seguro del hilo
 
     public CocinaMonitorThread() {
-        this.colaDePreparacion = new ArrayList<>();
         this.ejecutando = true;
-    }
-
-    // Método para que tú (o el sistema cuando se integre) agregue platos a cocinar
-    public synchronized void agregarComanda(DetallePedido detalle) {
-        colaDePreparacion.add(detalle);
-        System.out.println("[Cocina] Nueva comanda recibida. Hay " + colaDePreparacion.size() + " en cola.");
     }
 
     // Método para detener el hilo cuando el restaurante cierre
@@ -33,34 +26,55 @@ public class CocinaMonitorThread implements Runnable {
 
     @Override
     public void run() {
-        System.out.println("[Cocina] El monitor de cocina está ACTIVO y esperando comandas...");
+        System.out.println("[Cocina] Monitor de cocina iniciado. Revisando pedidos...");
 
         while (ejecutando) {
-            try {
-                if (!colaDePreparacion.isEmpty()) {
-                    // Tomamos el primer platillo de la cola
-                    DetallePedido platilloActual = colaDePreparacion.remove(0);
-                    
-                    System.out.println("\n[Cocina] Preparando platillo/bebida (ID: " + platilloActual.getIdProducto() + ") para la Orden " + platilloActual.getIdPedido() + "...");
-                    System.out.println("[Cocina] Observaciones: " + platilloActual.getObservaciones());
-
-                    // SIMULACIÓN DE CONCURRENCIA: Pausamos este hilo por 5 segundos simulando que el chef está cocinando
-                    // Mientras esto pasa, la consola principal (del mesero) sigue funcionando sin trabarse
-                    Thread.sleep(5000); 
-
-                    // Cambiamos el estado a "Listo"
-                    platilloActual.setEstadoPreparacion("Listo para entregar");
-                    System.out.println("[Cocina] ¡Platillo de la orden " + platilloActual.getIdPedido() + " está LISTO!\n");
-                    
-                } else {
-                    // Si no hay comandas, el cocinero descansa 2 segundos antes de volver a revisar la cola
-                    Thread.sleep(2000);
+            // NOTA: Cambia "TuClaseConexion.getConnection()" por el método real que usas en tu proyecto
+            /* 
+            try (Connection conn = TuClaseConexion.getConnection()) {
+                
+                // 1. Buscar platos que están "En preparación"
+                String selectQuery = "SELECT id, nombre_plato, tiempo_preparacion FROM detalle_pedido WHERE estado = 'En preparación'";
+                try (PreparedStatement selectStmt = conn.prepareStatement(selectQuery);
+                     ResultSet rs = selectStmt.executeQuery()) {
+                     
+                    while (rs.next() && ejecutando) {
+                        int idDetalle = rs.getInt("id");
+                        String plato = rs.getString("nombre_plato");
+                        int tiempo = rs.getInt("tiempo_preparacion"); // Asumimos que está en segundos
+                        
+                        System.out.println("[Cocina] Preparando: " + plato + " (ID: " + idDetalle + ")");
+                        
+                        // 2. Simular el tiempo que tarda el cocinero
+                        try {
+                            Thread.sleep(tiempo * 1000L); // Multiplicado por 1000 para convertir a milisegundos
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            break;
+                        }
+                        
+                        // 3. Actualizar el estado del plato a "Listo" en la base de datos
+                        String updateQuery = "UPDATE detalle_pedido SET estado = 'Listo' WHERE id = ?";
+                        try (PreparedStatement updateStmt = conn.prepareStatement(updateQuery)) {
+                            updateStmt.setInt(1, idDetalle);
+                            updateStmt.executeUpdate();
+                            System.out.println("[Cocina] Plato listo: " + plato);
+                        }
+                    }
                 }
+            } catch (SQLException e) {
+                System.err.println("[Cocina] Error al consultar la base de datos: " + e.getMessage());
+            }
+            */
+
+            // El hilo descansa 5 segundos antes de volver a preguntar a la base de datos (Polling)
+            try {
+                Thread.sleep(5000); 
             } catch (InterruptedException e) {
-                System.out.println("[Cocina] Error en la preparación: " + e.getMessage());
-                Thread.currentThread().interrupt(); // Buena práctica al atrapar InterruptedException
+                Thread.currentThread().interrupt();
+                break;
             }
         }
-        System.out.println("[Cocina] La cocina ha cerrado. Fin del turno.");
+        System.out.println("[Cocina] Monitor de cocina detenido.");
     }
 }

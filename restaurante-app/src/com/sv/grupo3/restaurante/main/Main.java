@@ -29,7 +29,14 @@ public class Main {
         // ---------------------------------------------------------
         // 1. POOL DE CONEXIONES (config/DataSourceConfig)
         // ---------------------------------------------------------
+<<<<<<< Updated upstream
         DataSource dataSource = DataSourceConfig.getDataSource();
+=======
+        ProductoRepository productoRepository = new ProductoRepository(null);
+        MesaRepository mesaRepository = new MesaRepository();
+        PedidoRepository PedidoRepository = new PedidoRepository();
+        UsuarioRepository usuarioRepository = new UsuarioRepository();
+>>>>>>> Stashed changes
 
         // ---------------------------------------------------------
         // 2. REPOSITORIOS (persistencia JDBC sobre el mismo pool)
