@@ -58,11 +58,6 @@ public class ProductoController {
         return productoService.listarDisponibles();
     }
 
-    public void darDeBaja(int idProducto) {
-        validarId(idProducto, "producto");
-        productoService.darDeBaja(idProducto);
-    }
-
     private void validarEntrada(String nombre, double precio, int existencias) {
         if (nombre == null || nombre.trim().isEmpty()) {
             throw new IllegalArgumentException("El nombre del producto es obligatorio.");

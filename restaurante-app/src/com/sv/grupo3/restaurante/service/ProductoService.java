@@ -10,10 +10,10 @@ import java.util.stream.Collectors;
 /**
  * Logica de negocio del catalogo (HU-001 y HU-005).
  *
- * Trabaja unicamente contra el contrato ProductoDAO, por lo que funciona igual con el
- * repositorio en memoria y con ProductoRepositoryJDBC. Cada operacion de este servicio
- * modifica una sola fila, de modo que el autocommit del DataSource garantiza su atomicidad;
- * las operaciones que tocan varias tablas (pedido + detalles + mesa) viven en PedidoService.
+ * Trabaja unicamente contra el contrato ProductoDAO (obtenerTodos, buscarPorId, guardar),
+ * que implementa ProductoRepository sobre JDBC. Cada operacion modifica una sola fila, de
+ * modo que el autocommit del DataSource garantiza su atomicidad; las operaciones que tocan
+ * varias tablas (pedido + detalles + mesa) viven en PedidoService.
  */
 public class ProductoService {
 
@@ -35,24 +35,15 @@ public class ProductoService {
         if (item.getEstado() == null || item.getEstado().trim().isEmpty()) {
             item.setEstado(ESTADO_ACTIVO);
         }
-        return productoDAO.guardar(item);
-    }
-
-    public ItemMenu actualizarProducto(ItemMenu item) {
-        validarDatosBasicos(item);
-        buscarPorId(item.getId()); // valida que exista antes de actualizar
-        return productoDAO.actualizar(item);
-    }
-
-    public void darDeBaja(int idProducto) {
-        ItemMenu item = buscarPorId(idProducto);
-        item.setEstado(ESTADO_INACTIVO);
-        productoDAO.actualizar(item);
+        if (!productoDAO.guardar(item)) {
+            throw new IllegalStateException("No se pudo guardar el producto '" + item.getNombre() + "' en el catalogo.");
+        }
+        return item;
     }
 
     /**
-     * Busca un producto por ID. Unifica el comportamiento de los repositorios:
-     * el de memoria lanza la excepcion y el JDBC devuelve null; aqui siempre se lanza.
+     * Busca un producto por ID. El repositorio devuelve null cuando no existe;
+     * aqui se traduce a una excepcion de negocio para toda la capa superior.
      */
     public ItemMenu buscarPorId(int idProducto) {
         ItemMenu item = productoDAO.buscarPorId(idProducto);
@@ -64,6 +55,7 @@ public class ProductoService {
 
     /**
      * Regla de venta usada por PedidoService antes de registrar una linea de comanda.
+     * Las existencias solo se validan cuando el item las reporta (mayores a cero).
      */
     public void validarDisponibleParaVenta(ItemMenu item, int cantidad) {
         if (cantidad <= 0) {
@@ -78,15 +70,19 @@ public class ProductoService {
         }
     }
 
+    /** Filtra por tipo de item: "Platillo" o "Bebida" (nombre de la subclase). */
     public List<ItemMenu> listarPorCategoria(String categoria) {
         if (categoria == null || categoria.trim().isEmpty()) {
             throw new IllegalArgumentException("Debe indicar una categoria (Platillo / Bebida).");
         }
-        return productoDAO.buscarPorCategoria(categoria.trim());
+        String tipo = categoria.trim();
+        return listarTodos().stream()
+                .filter(item -> item.getClass().getSimpleName().equalsIgnoreCase(tipo))
+                .collect(Collectors.toList());
     }
 
     public List<ItemMenu> listarTodos() {
-        return productoDAO.listarTodos();
+        return productoDAO.obtenerTodos();
     }
 
     /** Menu que ve el cliente: solo productos activos. */

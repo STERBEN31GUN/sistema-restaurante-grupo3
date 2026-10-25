@@ -32,10 +32,9 @@ public class Main {
         DataSource dataSource = DataSourceConfig.getDataSource();
 
         // ---------------------------------------------------------
-        // 2. REPOSITORIOS (persistencia JDBC)
-        //    El catalogo sigue en memoria hasta que se integre ProductoRepositoryJDBC.
+        // 2. REPOSITORIOS (persistencia JDBC sobre el mismo pool)
         // ---------------------------------------------------------
-        ProductoRepository productoRepository = new ProductoRepository();
+        ProductoRepository productoRepository = new ProductoRepository(dataSource);
         MesaRepositoryJDBC mesaRepository = new MesaRepositoryJDBC(dataSource);
         PedidoRepositoryJDBC pedidoRepository = new PedidoRepositoryJDBC(dataSource);
 
