@@ -1,80 +1,109 @@
 package com.sv.grupo3.restaurante.service;
 
+import com.sv.grupo3.restaurante.config.DataSourceConfig;
+import com.sv.grupo3.restaurante.model.DetallePedido;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-// IMPORTANTE: Agrega aquí el import de tu clase que genera la conexión (ej. ConexionDB)
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
-/**
- * Hilo que simula el trabajo asíncrono de la cocina y el bar.
- * Consulta directamente a la base de datos los detalles de los pedidos 
- * que están en estado "En preparación" sin bloquear el hilo principal.
- */
-public class CocinaMonitorThread implements Runnable {
-
-    private volatile boolean ejecutando; // Control seguro del hilo
-
-    public CocinaMonitorThread() {
-        this.ejecutando = true;
-    }
-
-    // Método para detener el hilo cuando el restaurante cierre
-    public void detener() {
-        this.ejecutando = false;
-    }
+public class CocinaMonitorThread extends Thread {
+    
+    // Bandera volatile para asegurar visibilidad segura entre hilos
+    private volatile boolean running = true;
+    
+    // Cola segura para recibir comandas en tiempo real desde el menú/servicios
+    private final BlockingQueue<DetallePedido> colaComandas = new LinkedBlockingQueue<>();
 
     @Override
     public void run() {
-        System.out.println("[Cocina] Monitor de cocina iniciado. Revisando pedidos...");
-
-        while (ejecutando) {
-            // NOTA: Cambia "TuClaseConexion.getConnection()" por el método real que usas en tu proyecto
-            /* 
-            try (Connection conn = TuClaseConexion.getConnection()) {
-                
-                // 1. Buscar platos que están "En preparación"
-                String selectQuery = "SELECT id, nombre_plato, tiempo_preparacion FROM detalle_pedido WHERE estado = 'En preparación'";
-                try (PreparedStatement selectStmt = conn.prepareStatement(selectQuery);
-                     ResultSet rs = selectStmt.executeQuery()) {
-                     
-                    while (rs.next() && ejecutando) {
-                        int idDetalle = rs.getInt("id");
-                        String plato = rs.getString("nombre_plato");
-                        int tiempo = rs.getInt("tiempo_preparacion"); // Asumimos que está en segundos
-                        
-                        System.out.println("[Cocina] Preparando: " + plato + " (ID: " + idDetalle + ")");
-                        
-                        // 2. Simular el tiempo que tarda el cocinero
-                        try {
-                            Thread.sleep(tiempo * 1000L); // Multiplicado por 1000 para convertir a milisegundos
-                        } catch (InterruptedException e) {
-                            Thread.currentThread().interrupt();
-                            break;
-                        }
-                        
-                        // 3. Actualizar el estado del plato a "Listo" en la base de datos
-                        String updateQuery = "UPDATE detalle_pedido SET estado = 'Listo' WHERE id = ?";
-                        try (PreparedStatement updateStmt = conn.prepareStatement(updateQuery)) {
-                            updateStmt.setInt(1, idDetalle);
-                            updateStmt.executeUpdate();
-                            System.out.println("[Cocina] Plato listo: " + plato);
-                        }
-                    }
-                }
-            } catch (SQLException e) {
-                System.err.println("[Cocina] Error al consultar la base de datos: " + e.getMessage());
-            }
-            */
-
-            // El hilo descansa 5 segundos antes de volver a preguntar a la base de datos (Polling)
+        System.out.println("[CocinaMonitor] Monitor de cocina iniciado en segundo plano.");
+        
+        while (running) {
             try {
-                Thread.sleep(5000); 
+                // 1. Procesar comandas que lleguen a la cola en memoria
+                DetallePedido detalle = colaComandas.poll(2, TimeUnit.SECONDS);
+                if (detalle != null) {
+                    procesarDetalleEnBD(detalle);
+                }
+                
+                // 2. Sondear periódicamente la base de datos para comandas pendientes
+                procesarComandasPendientesBD();
+                
             } catch (InterruptedException e) {
+                System.out.println("[CocinaMonitor] El hilo fue interrumpido.");
                 Thread.currentThread().interrupt();
                 break;
+            } catch (Exception e) {
+                System.err.println("[CocinaMonitor] Error en el ciclo del monitor: " + e.getMessage());
             }
         }
-        System.out.println("[Cocina] Monitor de cocina detenido.");
+        
+        System.out.println("[CocinaMonitor] Monitor de cocina detenido.");
+    }
+
+    /**
+     * Permite agregar una nueva comanda desde el menú de consola o servicios.
+     */
+    public void agregarComanda(DetallePedido detalle) {
+        if (detalle != null) {
+            colaComandas.offer(detalle);
+            System.out.println("[CocinaMonitor] Nueva comanda encolada para la cocina.");
+        }
+    }
+
+    private void procesarDetalleEnBD(DetallePedido detalle) {
+        String updateSQL = "UPDATE detalles_pedido SET estado = 'EN_PREPARACION' WHERE id = ?";
+        try (Connection conn = DataSourceConfig.getDataSource().getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(updateSQL)) {
+            
+            // Ajusta "detalle.getId()" según el nombre del método getter en tu clase DetallePedido
+            pstmt.setInt(1, detalle.getId());
+            pstmt.executeUpdate();
+            System.out.println("[CocinaMonitor] Detalle de pedido procesado y actualizado a EN_PREPARACION.");
+            
+        } catch (SQLException e) {
+            System.err.println("[CocinaMonitor] Error al actualizar la comanda en la base de datos: " + e.getMessage());
+        }
+    }
+
+    private void procesarComandasPendientesBD() {
+        String selectSQL = "SELECT id FROM detalles_pedido WHERE estado = 'PENDIENTE'";
+        String updateSQL = "UPDATE detalles_pedido SET estado = 'EN_PREPARACION' WHERE id = ?";
+
+        try (Connection conn = DataSourceConfig.getDataSource().getConnection();
+             PreparedStatement pstmtSelect = conn.prepareStatement(selectSQL);
+             ResultSet rs = pstmtSelect.executeQuery()) {
+
+            while (rs.next() && running) {
+                int idDetalle = rs.getInt("id");
+                
+                // Simular el tiempo de preparación asíncrona en cocina
+                Thread.sleep(1500);
+
+                try (PreparedStatement pstmtUpdate = conn.prepareStatement(updateSQL)) {
+                    pstmtUpdate.setInt(1, idDetalle);
+                    pstmtUpdate.executeUpdate();
+                }
+            }
+        } catch (SQLException | InterruptedException e) {
+            // Manejo silencioso de interrupciones de sondeo
+        }
+    }
+
+    /**
+     * Detiene el hilo de forma segura (compatible con las llamadas .detener() y .detenerMonitoreo()).
+     */
+    public void detener() {
+        this.running = false;
+        this.interrupt();
+    }
+
+    public void detenerMonitoreo() {
+        detener();
     }
 }

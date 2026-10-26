@@ -12,6 +12,7 @@ import com.sv.grupo3.restaurante.service.MesaService;
 import com.sv.grupo3.restaurante.service.PedidoService;
 import com.sv.grupo3.restaurante.service.ProductoService;
 import com.sv.grupo3.restaurante.service.RestauranteFacadeService;
+import com.sv.grupo3.restaurante.repository.UsuarioRepository;
 
 import javax.sql.DataSource;
 
@@ -29,14 +30,7 @@ public class Main {
         // ---------------------------------------------------------
         // 1. POOL DE CONEXIONES (config/DataSourceConfig)
         // ---------------------------------------------------------
-<<<<<<< Updated upstream
         DataSource dataSource = DataSourceConfig.getDataSource();
-=======
-        ProductoRepository productoRepository = new ProductoRepository(null);
-        MesaRepository mesaRepository = new MesaRepository();
-        PedidoRepository PedidoRepository = new PedidoRepository();
-        UsuarioRepository usuarioRepository = new UsuarioRepository();
->>>>>>> Stashed changes
 
         // ---------------------------------------------------------
         // 2. REPOSITORIOS (persistencia JDBC sobre el mismo pool)
@@ -44,6 +38,7 @@ public class Main {
         ProductoRepository productoRepository = new ProductoRepository(dataSource);
         MesaRepositoryJDBC mesaRepository = new MesaRepositoryJDBC(dataSource);
         PedidoRepositoryJDBC pedidoRepository = new PedidoRepositoryJDBC(dataSource);
+        UsuarioRepository usuarioRepository = new UsuarioRepository();
 
         // ---------------------------------------------------------
         // 3. SERVICIOS (reglas de negocio y transacciones)

@@ -59,7 +59,7 @@ public class MenuConsola {
                         break;
                     case 5:
                         System.out.println("\n[Consola] Cerrando sesión y deteniendo monitor de cocina...");
-                        cocinaMonitor.detener();
+                        cocinaMonitor.detenerMonitoreo();
                         break;
                     default:
                         System.out.println("[Error] Opción no válida. Intente nuevamente.");
