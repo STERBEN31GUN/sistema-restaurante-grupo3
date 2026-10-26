@@ -38,9 +38,9 @@ Aplicación para administrar la operación diaria de un restaurante: catálogo d
 
 - **Lenguaje:** Java 17 o superior
 - **Base de datos:** MySQL 8.0
-- **Persistencia actual:** repositorios en memoria (`HashMap`); los scripts de `database/` preparan la base MySQL para la capa JDBC prevista en las fases 2 y 3
+- **Acceso a datos:** JDBC con pool de conexiones HikariCP 5.1.0 y driver MySQL Connector/J 8.4.0 (SLF4J 2.0.13 como dependencia de HikariCP)
 - **Pruebas:** pruebas manuales (`ProductoServiceTest`); JUnit y Mockito previstos en la Fase 5
-- **Gestión de dependencias / build:** ninguno; la compilación se hace directamente con `javac`
+- **Dependencias / build:** archivos `.jar` en la carpeta `lib/` (sin Maven ni Gradle); compilación con `javac`
 - **Control de versiones:** Git y GitHub
 
 ## Estructura del repositorio
@@ -57,18 +57,21 @@ sistema-restaurante-grupo3/
 
 | Paquete | Propósito |
 |---|---|
-| `model` | Entidades: `Producto`, `Mesa`, `Pedido`, `DetallePedido`, `Usuario`, `ReporteVenta` |
-| `dao` | Interfaces CRUD por entidad |
-| `repository` | Implementación en memoria de los DAO (`HashMap`) |
-| `service` | Lógica de negocio (HU-001 a HU-004) |
-| `util` | Utilidades (`GeneradorId`) |
-| `exception` | Excepciones (`RecursoNoEncontradoException`) |
-| `main` | `Main.java`, demo funcional |
-| `test` | `ProductoServiceTest.java`, pruebas manuales |
+| `config` | Configuración, incluido `DataSourceConfig` (pool de conexiones) |
+| `controller` | Controladores que conectan la interfaz con los servicios |
+| `service` | Lógica de negocio |
+| `dao` | Interfaces de acceso a datos por entidad |
+| `repository` | Implementación de los DAO |
+| `model` | Entidades del dominio |
+| `dto` | Objetos de transferencia de datos |
+| `exception` | Excepciones personalizadas |
+| `util` | Utilidades compartidas |
+| `main` | `Main.java`, punto de entrada de la aplicación |
+| `test` | Pruebas manuales |
 
 ## Arquitectura
 
-La aplicación sigue una arquitectura en capas: `service` contiene la lógica de negocio y usa los `dao` (interfaces) implementados en `repository`, con `model` como entidades compartidas.
+La aplicación sigue una arquitectura en capas: `controller` → `service` → `dao`/`repository` → base de datos MySQL, con `model` y `dto` como objetos compartidos entre capas.
 
 ![Diagrama de arquitectura](restaurante-app/docs/arquitectura.png)
 
@@ -94,8 +97,8 @@ El esquema se define en `database/schema.sql` y contiene las siguientes tablas:
 ## Requisitos previos
 
 - JDK 17 o superior
-- MySQL 8.0 en ejecución (para cargar los scripts de `database/`)
-- No se requiere Maven ni Gradle
+- MySQL 8.0 en ejecución
+- `curl` para descargar las librerías (o descargarlas a mano desde Maven Central)
 - Git
 
 ## Instalación y ejecución local
@@ -107,42 +110,59 @@ El esquema se define en `database/schema.sql` y contiene las siguientes tablas:
    cd sistema-restaurante-grupo3
    ```
 
-2. **Crear la base de datos y cargar los datos**
+2. **Crear la base de datos y cargar los datos** (primero `schema.sql`, después `data.sql`)
 
    ```bash
-   mysql -u <usuario> -p -e "CREATE DATABASE IF NOT EXISTS <nombre_bd>;"
-   mysql -u <usuario> -p <nombre_bd> < database/schema.sql
-   mysql -u <usuario> -p <nombre_bd> < database/data.sql
+   mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS restaurante;"
+   mysql -u root -p restaurante < database/schema.sql
+   mysql -u root -p restaurante < database/data.sql
    ```
 
-   El orden importa: primero `schema.sql` (crea las tablas) y después `data.sql` (inserta los datos).
-
-3. **Configurar la conexión** (ver [Configuración](#configuración)).
-
-4. **Compilar y ejecutar la aplicación**
+3. **Descargar las librerías** a `restaurante-app/lib/` (no se suben al repositorio)
 
    ```bash
    cd restaurante-app
-   mkdir -p bin
-   find src -name "*.java" > sources.txt
-   javac -d bin -encoding UTF-8 @sources.txt
-   java -cp bin com.sv.grupo3.restaurante.main.Main
-
-   # Pruebas manuales
-   java -ea -cp bin com.sv.grupo3.restaurante.test.ProductoServiceTest
+   mkdir -p lib
+   curl -L -o lib/HikariCP-5.1.0.jar https://repo1.maven.org/maven2/com/zaxxer/HikariCP/5.1.0/HikariCP-5.1.0.jar
+   curl -L -o lib/slf4j-api-2.0.13.jar https://repo1.maven.org/maven2/org/slf4j/slf4j-api/2.0.13/slf4j-api-2.0.13.jar
+   curl -L -o lib/mysql-connector-j-8.4.0.jar https://repo1.maven.org/maven2/com/mysql/mysql-connector-j/8.4.0/mysql-connector-j-8.4.0.jar
    ```
 
-5. **Verificar** que `Main` se ejecuta sin errores y que la prueba manual termina sin fallos.
+4. **Configurar la conexión** (ver [Configuración](#configuración)). Si tu usuario de MySQL no es `root` sin contraseña:
+
+   ```bash
+   export DB_USER=<usuario>
+   export DB_PASSWORD=<contraseña>
+   ```
+
+5. **Compilar y ejecutar**
+
+   ```bash
+   mkdir -p bin
+   find src -name "*.java" > sources.txt
+   javac -cp "lib/*" -d bin -encoding UTF-8 @sources.txt
+   java -cp "bin:lib/*" com.sv.grupo3.restaurante.main.Main
+   ```
+
+   En Windows el separador del classpath es `;` en vez de `:`.
+
+6. **Verificar**: se muestra el menú principal del sistema y el monitor de cocina inicia en segundo plano. Para salir, elegir la opción 5.
+
+7. **Pruebas manuales** (opcional)
+
+   ```bash
+   java -ea -cp "bin:lib/*" com.sv.grupo3.restaurante.test.ProductoServiceTest
+   ```
 
 ## Configuración
 
-La versión actual funciona en memoria y no requiere conexión. Cuando se integre la capa JDBC, la conexión se configurará mediante `DataSourceConfig` (pool de conexiones) con estos parámetros:
+La conexión se configura mediante `DataSourceConfig`, que lee variables de entorno y usa valores por defecto si no existen:
 
-| Parámetro | Descripción | Ejemplo |
+| Variable | Descripción | Valor por defecto |
 |---|---|---|
-| URL | Cadena de conexión JDBC | `jdbc:mysql://localhost:3306/<nombre_bd>` |
-| Usuario | Usuario de MySQL | `root` |
-| Contraseña | Contraseña de MySQL | no subir al repositorio |
+| `DB_URL` | Cadena de conexión JDBC | `jdbc:mysql://localhost:3306/restaurante` |
+| `DB_USER` | Usuario de MySQL | `root` |
+| `DB_PASSWORD` | Contraseña de MySQL | (vacía) |
 
 > **Importante:** no subas contraseñas reales al repositorio.
 
@@ -170,7 +190,9 @@ La documentación técnica completa del Avance 3 está en el documento de Google
 
 | Problema | Posible causa y solución |
 |---|---|
-| `Access denied for user` | Usuario o contraseña incorrectos en la configuración de conexión |
-| `Unknown database` | Falta crear la base de datos antes de ejecutar `schema.sql` |
+| `package com.zaxxer.hikari does not exist` | Faltan las librerías: descargarlas a `lib/` y compilar con `-cp "lib/*"` |
+| `Connection refused` / `Communications link failure` | MySQL no está corriendo (`sudo service mysql start`) o el puerto no es 3306 |
+| `Access denied for user` | Usuario o contraseña incorrectos: revisar `DB_USER` y `DB_PASSWORD` |
+| `Unknown database 'restaurante'` | Falta crear la base antes de ejecutar `schema.sql` |
 | `Table doesn't exist` | Se ejecutó `data.sql` antes que `schema.sql` |
-| Error de conexión al arrancar | MySQL no está corriendo o el puerto es distinto de 3306 |
+| `SLF4J(W): No SLF4J providers were found` | Es solo un aviso de logging; la aplicación funciona con normalidad |
